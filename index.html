@@ -1,1 +1,498 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kararlı Dev X-O-X Oyunu</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      transition: background-color 0.4s ease;
+      padding: 20px;
+    }
+    .bg-red { background-color: #ff4d4d; }
+    .bg-blue { background-color: #4d94ff; }
+    .bg-menu { background-color: #2c3e50; }
 
+    .card {
+      background: white;
+      padding: 25px;
+      border-radius: 20px;
+      box-shadow: 0 15px 35px rgba(0,0,0,0.25);
+      text-align: center;
+      width: 100%;
+      max-width: 450px;
+      position: relative;
+      transition: max-width 0.3s ease;
+    }
+
+    .top-buttons {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+    }
+    .icon-btn {
+      background: #f0f0f0;
+      border: 1px solid #ccc;
+      padding: 6px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    .icon-btn:hover { background: #e0e0e0; }
+
+    h1 { font-size: 24px; margin-bottom: 10px; color: #333; margin-top: 5px; }
+    
+    .status {
+      font-size: 16px;
+      font-weight: bold;
+      margin-bottom: 15px;
+      padding: 10px;
+      border-radius: 10px;
+      background: #f8f9fa;
+      border: 1px solid #e9ecef;
+    }
+
+    .board-container {
+      position: relative;
+      margin: 0 auto 20px auto;
+      display: flex;
+      justify-content: center;
+    }
+
+    .board {
+      display: grid;
+      gap: 8px;
+      width: 100%;
+    }
+    
+    /* 9 Kare (3x3) */
+    .board.mode-9 { grid-template-columns: repeat(3, 1fr); }
+    /* 18 Kare (6x3) */
+    .board.mode-18 { grid-template-columns: repeat(6, 1fr); }
+    /* 27 Kare (9x3) */
+    .board.mode-27 { grid-template-columns: repeat(9, 1fr); }
+
+    .cell {
+      aspect-ratio: 1;
+      background: #fdfdfd;
+      border: 2px solid #dfe6e9;
+      border-radius: 8px;
+      font-size: 24px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.2s;
+    }
+    .cell:hover { background: #f1f2f6; }
+    .cell.X { color: #ff4d4d; }
+    .cell.O { color: #4d94ff; }
+
+    .winning-line {
+      position: absolute;
+      background-color: #f1c40f;
+      border-radius: 5px;
+      z-index: 10;
+      display: none;
+      pointer-events: none;
+    }
+
+    .btn {
+      padding: 12px 24px;
+      font-size: 16px;
+      font-weight: bold;
+      background: #2d3436;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.2s;
+      width: 100%;
+      margin-top: 5px;
+    }
+    .btn:hover { background: #636e72; }
+
+    .modal {
+      display: flex;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.65);
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    .modal.hidden { display: none; }
+    .modal-content {
+      background: white;
+      padding: 30px;
+      border-radius: 20px;
+      text-align: center;
+      width: 90%;
+      max-width: 380px;
+    }
+    .modal-content h2 { font-size: 22px; margin-bottom: 15px; color: #2d3436; }
+    
+    .form-group {
+      margin-bottom: 15px;
+      text-align: left;
+    }
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      font-weight: bold;
+      margin-bottom: 5px;
+      color: #636e72;
+    }
+    .form-group select {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+      background: #fff;
+    }
+  </style>
+</head>
+<body id="body" class="bg-menu">
+
+  <!-- AYARLAR MODALI -->
+  <div class="modal" id="setupModal">
+    <div class="modal-content">
+      <h2 id="modalTitle">Oyun Ayarları</h2>
+      
+      <div class="form-group">
+        <label id="lblLang">Dil Seçimi / Language</label>
+        <select id="selectLang" onchange="updateTexts()">
+          <option value="tr">Türkçe</option>
+          <option value="en">English</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label id="lblDevice">Cihaz Görünümü</label>
+        <select id="selectDevice">
+          <option value="phone">Telefon (Mobil)</option>
+          <option value="tablet">Tablet</option>
+          <option value="pc">Bilgisayar (Masaüstü)</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label id="lblOpponent">Rakip Seçimi</label>
+        <select id="selectOpponent">
+          <option value="pvp">2 Oyuncu (Yan Yana)</option>
+          <option value="bot">Bot'a Karşı (Yapay Zeka)</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label id="lblGrid">Kare Sayısı (Tahta Modu)</label>
+        <select id="selectGrid">
+          <option value="9">1 x 9 (Standart 9 Kare)</option>
+          <option value="18">2 x 9 (18 Kare)</option>
+          <option value="27">3 x 9 (27 Kare)</option>
+        </select>
+      </div>
+
+      <button class="btn" id="startBtn" onclick="closeSetup()">Oyuna Başla</button>
+    </div>
+  </div>
+
+  <!-- BİTİŞ MODALI -->
+  <div class="modal hidden" id="winnerModal">
+    <div class="modal-content">
+      <h2 id="winnerText"></h2>
+      <button class="btn" id="playAgainBtn" onclick="resetGame()">Tekrar Oyna</button>
+    </div>
+  </div>
+
+  <!-- OYUN KARTI -->
+  <div class="card" id="mainCard">
+    <div class="top-buttons">
+      <button class="icon-btn" onclick="openSettings()" title="Ayarlar">⚙️</button>
+    </div>
+
+    <h1 id="gameTitle">X - O - X</h1>
+    <div id="status" class="status">Sıra: 1. Oyuncu (Kırmızı - X)</div>
+    
+    <div class="board-container">
+      <div class="winning-line" id="winningLine"></div>
+      <div class="board mode-9" id="board"></div>
+    </div>
+
+    <button class="btn" id="resetBtn" onclick="resetGame()">Yeniden Başlat</button>
+  </div>
+
+  <script>
+    let totalCells = 9;
+    let gameState = [];
+    let activePlayer = 1; // 1: Kırmızı (X), 2: Mavi (O)
+    let gameActive = false;
+    let currentLang = "tr";
+    let isBotMode = false;
+
+    const translations = {
+      tr: {
+        title: "Oyun Ayarları",
+        lblLang: "Dil Seçimi",
+        lblDevice: "Cihaz Görünümü",
+        lblOpponent: "Rakip Seçimi",
+        lblGrid: "Kare Sayısı (Tahta Modu)",
+        phone: "Telefon (Mobil)",
+        tablet: "Tablet",
+        pc: "Bilgisayar (Masaüstü)",
+        pvp: "2 Oyuncu (Yan Yana)",
+        bot: "Bot'a Karşı (Yapay Zeka)",
+        start: "Oyuna Başla",
+        reset: "Yeniden Başlat",
+        playAgain: "Tekrar Oyna",
+        p1Turn: "Sıra: 1. Oyuncu (Kırmızı - X)",
+        p2Turn: "Sıra: 2. Oyuncu (Mavi - O)",
+        botTurn: "Sıra: Bot Düşünüyor...",
+        p1Win: "1. Oyuncu Kazandı!",
+        p2Win: "2. Oyuncu Kazandı!",
+        botWin: "Bot Kazandı!",
+        draw: "Berabere!"
+      },
+      en: {
+        title: "Game Settings",
+        lblLang: "Language",
+        lblDevice: "Device View",
+        lblOpponent: "Opponent",
+        lblGrid: "Grid Size",
+        phone: "Phone (Mobile)",
+        tablet: "Tablet",
+        pc: "PC (Desktop)",
+        pvp: "2 Players",
+        bot: "VS Bot (AI)",
+        start: "Start Game",
+        reset: "Restart",
+        playAgain: "Play Again",
+        p1Turn: "Turn: Player 1 (Red - X)",
+        p2Turn: "Turn: Player 2 (Blue - O)",
+        botTurn: "Turn: Bot Thinking...",
+        p1Win: "Player 1 Wins!",
+        p2Win: "Player 2 Wins!",
+        botWin: "Bot Wins!",
+        draw: "It's a Draw!"
+      }
+    };
+
+    function updateTexts() {
+      currentLang = document.getElementById('selectLang').value;
+      const t = translations[currentLang];
+
+      document.getElementById('modalTitle').innerText = t.title;
+      document.getElementById('lblLang').innerText = t.lblLang;
+      document.getElementById('lblDevice').innerText = t.lblDevice;
+      document.getElementById('lblOpponent').innerText = t.lblOpponent;
+      document.getElementById('lblGrid').innerText = t.lblGrid;
+      document.getElementById('startBtn').innerText = t.start;
+      document.getElementById('resetBtn').innerText = t.reset;
+      document.getElementById('playAgainBtn').innerText = t.playAgain;
+      
+      const devSel = document.getElementById('selectDevice');
+      devSel.options[0].text = t.phone;
+      devSel.options[1].text = t.tablet;
+      devSel.options[2].text = t.pc;
+
+      const oppSel = document.getElementById('selectOpponent');
+      oppSel.options[0].text = t.pvp;
+      oppSel.options[1].text = t.bot;
+
+      if (gameActive) updateTurnUI();
+    }
+
+    function applyDeviceMode() {
+      const mode = document.getElementById('selectDevice').value;
+      const card = document.getElementById('mainCard');
+      if (mode === 'phone') {
+        card.style.maxWidth = '360px';
+      } else if (mode === 'tablet') {
+        card.style.maxWidth = '550px';
+      } else {
+        card.style.maxWidth = '750px';
+      }
+    }
+
+    function buildBoard() {
+      totalCells = parseInt(document.getElementById('selectGrid').value);
+      const board = document.getElementById('board');
+      board.innerHTML = "";
+      board.className = "board mode-" + totalCells;
+      gameState = Array(totalCells).fill("");
+
+      for (let i = 0; i < totalCells; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        cell.onclick = () => makeMove(i);
+        board.appendChild(cell);
+      }
+    }
+
+    function closeSetup() {
+      applyDeviceMode();
+      isBotMode = document.getElementById('selectOpponent').value === 'bot';
+      buildBoard();
+      document.getElementById('setupModal').classList.add('hidden');
+      gameActive = true;
+      resetGame();
+    }
+
+    function openSettings() {
+      gameActive = false;
+      document.getElementById('setupModal').classList.remove('hidden');
+      document.getElementById('body').className = "bg-menu";
+    }
+
+    function updateTurnUI() {
+      const body = document.getElementById('body');
+      const status = document.getElementById('status');
+      const t = translations[currentLang];
+
+      if (activePlayer === 1) {
+        body.className = "bg-red";
+        status.innerText = t.p1Turn;
+        status.style.color = "#c0392b";
+      } else {
+        body.className = "bg-blue";
+        status.innerText = isBotMode ? t.botTurn : t.p2Turn;
+        status.style.color = "#2980b9";
+      }
+    }
+
+    function makeMove(index) {
+      if (gameState[index] !== "" || !gameActive) return;
+
+      const cells = document.querySelectorAll('.cell');
+
+      if (activePlayer === 1) {
+        gameState[index] = "X";
+        cells[index].innerText = "X";
+        cells[index].className = "cell X";
+      } else {
+        gameState[index] = "O";
+        cells[index].innerText = "O";
+        cells[index].className = "cell O";
+      }
+
+      if (checkResult()) return;
+
+      activePlayer = activePlayer === 1 ? 2 : 1;
+      updateTurnUI();
+
+      if (isBotMode && activePlayer === 2 && gameActive) {
+        setTimeout(makeBotMove, 500);
+      }
+    }
+
+    function makeBotMove() {
+      let emptyIndices = [];
+      gameState.forEach((val, idx) => {
+        if (val === "") emptyIndices.push(idx);
+      });
+
+      if (emptyIndices.length > 0) {
+        const randomIdx = emptyIndices[Math.floor(Math.random() * emptyIndices.length)];
+        makeMove(randomIdx);
+      }
+    }
+
+    function checkResult() {
+      let roundWon = false;
+      let winningLineInfo = null;
+
+      const cols = totalCells === 9 ? 3 : (totalCells === 18 ? 6 : 9);
+
+      // Yatay Kontrol
+      for (let r = 0; r < 3; r++) {
+        for (let c = 0; c <= cols - 3; c++) {
+          let idx = r * cols + c;
+          if (gameState[idx] && gameState[idx] === gameState[idx+1] && gameState[idx] === gameState[idx+2]) {
+            roundWon = true;
+            break;
+          }
+        }
+      }
+
+      // Dikey Kontrol
+      for (let c = 0; c < cols; c++) {
+        if (gameState[c] && gameState[c] === gameState[c + cols] && gameState[c] === gameState[c + cols*2]) {
+          roundWon = true;
+          break;
+        }
+      }
+
+      // Çapraz Kontroller
+      for (let r = 0; r <= 0; r++) {
+        for (let c = 0; c <= cols - 3; c++) {
+          let idx = r * cols + c;
+          if (gameState[idx] && gameState[idx] === gameState[idx + cols + 1] && gameState[idx] === gameState[(idx + cols + 1)*2 - idx]) {
+            roundWon = true;
+            break;
+          }
+        }
+      }
+
+      const t = translations[currentLang];
+
+      if (roundWon) {
+        gameActive = false;
+        setTimeout(() => {
+          if (activePlayer === 1) {
+            showWinner(t.p1Win, "#ff4d4d");
+          } else {
+            showWinner(isBotMode ? t.botWin : t.p2Win, "#4d94ff");
+          }
+        }, 600);
+        return true;
+      }
+
+      if (!gameState.includes("")) {
+        gameActive = false;
+        setTimeout(() => {
+          showWinner(t.draw, "#333");
+        }, 500);
+        return true;
+      }
+
+      return false;
+    }
+
+    function showWinner(text, color) {
+      const modal = document.getElementById('winnerModal');
+      const winnerText = document.getElementById('winnerText');
+      winnerText.innerText = text;
+      winnerText.style.color = color;
+      modal.classList.remove('hidden');
+    }
+
+    function resetGame() {
+      gameState = Array(totalCells).fill("");
+      gameActive = true;
+      activePlayer = 1;
+      
+      document.querySelectorAll('.cell').forEach(cell => {
+        cell.innerText = "";
+        cell.className = "cell";
+      });
+
+      document.getElementById('winnerModal').classList.add('hidden');
+      updateTurnUI();
+    }
+  </script>
+</body>
+</html>
